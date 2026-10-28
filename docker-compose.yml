@@ -1,0 +1,34 @@
+
+services:
+  database:
+    image: mariadb:10.6
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: hotel_reservations
+      MARIADB_USER: hotel_api
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ../hotel-booking-architecture/scripts/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ../hotel-booking-architecture/scripts/02_seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL_DOCKER}
+      CORS_ORIGINS: http://localhost:5173
+    depends_on:
+      database:
+        condition: service_healthy
+
+volumes:
+  mariadb_data:
